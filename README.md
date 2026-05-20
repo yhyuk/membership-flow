@@ -29,13 +29,13 @@
 ```
 com.artinus.subscription
 ├── domain          # 회원/채널/구독 엔티티, 도메인 정책 (Phase 2)
-├── application     # 유스케이스 서비스 (Phase 4)
+├── application     # 유스케이스 서비스 — Subscription* / History* 2-Phase TX (Phase 4~5)
 ├── infrastructure  # JPA Repository, 영속 어댑터 (Phase 2~4)
-├── presentation    # REST Controller, ProblemDetail 핸들러 (Phase 4)
+├── presentation    # REST Controller, ProblemDetail 핸들러 (Phase 4~5)
 ├── external
 │   ├── csrng       # 외부 트랜잭션 검증 클라이언트 (Phase 3)
-│   └── llm         # Gemini 요약 클라이언트 (Phase 5)
-└── config          # 전역 설정 (OpenAPI 등)
+│   └── llm         # Gemini 요약 클라이언트 — PromptTemplate(PII 보호) + Resilience4j (Phase 5)
+└── config          # 전역 설정 (Clock, OpenAPI 등)
 ```
 
 ---
@@ -87,11 +87,24 @@ docker compose up -d mysql
 | Method | Path | 설명 | 상태 |
 |---|---|---|---|
 | POST | `/api/v1/subscriptions` | 구독/해지 (요청 body의 `targetState`로 분기) | Phase 4 |
-| GET | `/api/v1/members/{phoneNumber}/subscription-histories` | 이력 + LLM 요약 | Phase 5 (예정) |
+| GET | `/api/v1/members/{phoneNumber}/subscription-histories` | 최근 20건 이력 + LLM 요약 (NORMAL/DEGRADED/EMPTY) | Phase 5 |
 
 오류 응답은 RFC 7807 `application/problem+json`을 따른다. 본문에 ErrorCode가
 `code` 확장 속성으로 첨부된다. HTTP 상태 매트릭스 9 상황은
 [`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md) §3.2 참고.
+
+### 이력 조회 API 응답 시나리오
+
+| 상황 | HTTP | `status` | `summary` | 비고 |
+|---|---|---|---|---|
+| 이력 1건 이상 + LLM 성공 | 200 | `NORMAL` | 자연어 요약 문자열 | 정상 케이스 |
+| 이력 1건 이상 + LLM 실패 | 200 | `DEGRADED` | `null` | api-key 미설정 / 4xx / 5xx / timeout 모두 동일 매핑 |
+| 이력 0건 | 200 | `EMPTY` | `null` | LLM 호출 자체를 건너뜀 |
+| Member 미존재 | 404 | — | — | ProblemDetail (`RESOURCE_NOT_FOUND`) |
+| phoneNumber 형식 위반 | 400 | — | — | ProblemDetail (`VALIDATION_FAILED`) |
+
+LLM 호출 실패가 사용자 응답을 막지 않는다는 결정은 ASSIGNMENT의 "이력 + 요약" 요구가 요약이
+보조적임을 시사하기 때문이다. 응답 마스킹: `phoneNumber`는 `010-****-1234` 형태로 부분 마스킹된다.
 
 ---
 
@@ -100,7 +113,7 @@ docker compose up -d mysql
 - 과제 원문: [`ASSIGNMENT.md`](ASSIGNMENT.md)
 - 작업 계획: [`.omc/plans/2026-05-19-artinus-subscription-plan.md`](.omc/plans/2026-05-19-artinus-subscription-plan.md)
 - Phase 0 인계 (정정 SoT): [`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md)
-- 클라우드 아키텍처: `docs/architecture.md` (Phase 5에서 작성)
+- 클라우드 아키텍처: [`docs/architecture.md`](docs/architecture.md) — Mermaid 다이어그램 + NAT/KMS/WAF/RPO·RTO
 
 ---
 
@@ -111,6 +124,6 @@ docker compose up -d mysql
 - [x] Phase 1 — 프로젝트 부트스트랩
 - [x] Phase 2 — 도메인 & Flyway V1 & StateTransitionPolicy (18 케이스 TDD)
 - [x] Phase 3 — csrng 클라이언트 + Resilience4j
-- [x] **Phase 4 — 구독/해지 API (2-Phase TX) + ProblemDetail GlobalExceptionHandler** (현재)
-- [ ] Phase 5 — 이력 조회 + LLM 요약 + AWS 아키텍처 문서
+- [x] Phase 4 — 구독/해지 API (2-Phase TX) + ProblemDetail GlobalExceptionHandler
+- [x] **Phase 5 — 이력 조회 + LLM 요약 + AWS 아키텍처 문서** (현재)
 - [ ] Phase 6 — 통합 시나리오 테스트 + JaCoCo + 최종 검증

@@ -72,6 +72,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.httpStatus()).body(body);
     }
 
+    /**
+     * 400 — 도메인 입력 검증 실패. Phase 5 이력 조회 API의 phoneNumber 정규식 위반 등을 포괄한다.
+     *
+     * <p>@Valid가 닿지 못하는 path variable / 서비스 layer 검증의 단일 진입점이다.</p>
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex) {
+        ProblemDetail body = build(ErrorCode.VALIDATION_FAILED, ex.getMessage());
+        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.httpStatus()).body(body);
+    }
+
     /** 422 — 상태 전이 정책 위반. */
     @ExceptionHandler(IllegalStateTransitionException.class)
     public ResponseEntity<ProblemDetail> handleIllegalTransition(IllegalStateTransitionException ex) {
