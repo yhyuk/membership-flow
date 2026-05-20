@@ -22,6 +22,8 @@ ext {
     resilience4jVersion = '2.2.0'
     // Springdoc OpenAPI 2.x (Spring Boot 3.3 호환 최신 stable)
     springdocVersion = '2.6.0'
+    // WireMock standalone (test scope only — Phase 3 외부 API 격리 테스트)
+    wiremockVersion = '3.9.1'
 }
 
 dependencies {
@@ -55,9 +57,16 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.assertj:assertj-core'
+    // WireMock standalone — 외부 API(csrng) HTTP 격리 (Phase 3)
+    // JUnit 5 extension은 wiremock-standalone에 포함되어 있음
+    testImplementation "org.wiremock:wiremock-standalone:${wiremockVersion}"
     // Testcontainers는 Phase 6에서 추가 예정 (인계 문서 §5 Phase 6)
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    testLogging {
+        events 'failed', 'skipped'
+        exceptionFormat = 'full'
+    }
 }

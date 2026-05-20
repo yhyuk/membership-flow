@@ -31,11 +31,44 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
 
-# Resilience4j aspect order (handoff §3.3)
-#   Retry 최외곽(order=2) > CircuitBreaker(order=1)
-#   TimeLimiter/Bulkhead는 사용하지 않음
+# 외부 API — csrng (Phase 3)
+#   base-url: ASSIGNMENT.md §외부 API 명세 그대로
+#   timeout: handoff §3.3 (@TimeLimiter 회피 — RestClient 자체 타임아웃)
+external:
+  csrng:
+    base-url: ${CSRNG_BASE_URL:https://csrng.net/csrng/csrng.php}
+    connect-timeout-ms: 1000
+    read-timeout-ms: 2000
+
+# Resilience4j (handoff §3.3)
+#   aspect order: Retry 최외곽(order=2) > CircuitBreaker(order=1)
+#   호출 흐름: caller → Retry → CircuitBreaker → 실제 메서드
+#   TimeLimiter/Bulkhead는 사용하지 않음 (handoff C-1)
 resilience4j:
   retry:
     retry-aspect-order: 2
+    instances:
+      csrng:
+        max-attempts: 3
+        wait-duration: 200ms
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+        ignore-exceptions:
+          - com.artinus.subscription.external.csrng.CsrngException
   circuitbreaker:
     circuit-breaker-aspect-order: 1
+    instances:
+      csrng:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        # CsrngException은 어댑터가 명시적으로 던지는 사용자 예외이므로
+        # CB가 이를 실패로 카운트 (4xx/빈배열/status≠success 모두 누적)
+        record-exceptions:
+          - com.artinus.subscription.external.csrng.CsrngException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException

@@ -82,13 +82,16 @@ docker compose up -d mysql
 
 ---
 
-## API 개요 (Phase 4 이후)
+## API 개요
 
-| Method | Path | 설명 |
-|---|---|---|
-| POST | `/api/v1/subscriptions` | 구독하기 |
-| POST | `/api/v1/subscriptions/cancel` | 구독 해지 |
-| GET | `/api/v1/members/{phoneNumber}/subscription-histories` | 이력 + LLM 요약 |
+| Method | Path | 설명 | 상태 |
+|---|---|---|---|
+| POST | `/api/v1/subscriptions` | 구독/해지 (요청 body의 `targetState`로 분기) | Phase 4 |
+| GET | `/api/v1/members/{phoneNumber}/subscription-histories` | 이력 + LLM 요약 | Phase 5 (예정) |
+
+오류 응답은 RFC 7807 `application/problem+json`을 따른다. 본문에 ErrorCode가
+`code` 확장 속성으로 첨부된다. HTTP 상태 매트릭스 9 상황은
+[`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md) §3.2 참고.
 
 ---
 
@@ -106,8 +109,8 @@ docker compose up -d mysql
 - [x] 작업 계획 수립
 - [x] Phase 0 — 계획 검토 (critic + architect)
 - [x] Phase 1 — 프로젝트 부트스트랩
-- [x] **Phase 2 — 도메인 & Flyway V1 & StateTransitionPolicy (18 케이스 TDD)** (현재)
-- [ ] Phase 3 — csrng 클라이언트 + Resilience4j + LLM 클라이언트
-- [ ] Phase 4 — 구독/해지 API (2-Phase TX)
+- [x] Phase 2 — 도메인 & Flyway V1 & StateTransitionPolicy (18 케이스 TDD)
+- [x] Phase 3 — csrng 클라이언트 + Resilience4j
+- [x] **Phase 4 — 구독/해지 API (2-Phase TX) + ProblemDetail GlobalExceptionHandler** (현재)
 - [ ] Phase 5 — 이력 조회 + LLM 요약 + AWS 아키텍처 문서
 - [ ] Phase 6 — 통합 시나리오 테스트 + JaCoCo + 최종 검증
