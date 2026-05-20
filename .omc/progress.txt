@@ -1,0 +1,169 @@
+================================================================
+ARTINUS 구독 서비스 - Phase 0 (계획서 다관점 검증) 진행 기록
+================================================================
+
+[2026-05-19] Phase 0 시작 — Ralph PRD 모드
+  - prd.json 생성: Phase 0 전용 3개 user story (US-001 critic, US-002 architect, US-003 통합)
+  - acceptance criteria를 task-specific하게 정의 (요구사항 9개 매핑 / 모서리 케이스 5건 / before-after 9건 등 구체적 산출 기준)
+
+[2026-05-19] US-001 / US-002 병렬 실행
+  - critic 에이전트 (oh-my-claudecode:critic, sonnet 추정) → 170줄 리포트
+    * 9개 요구사항 1:1 매핑 표
+    * MAJOR 5건 / MINOR 5건 (CRITICAL 0건)
+    * 핵심: TX 안 외부 HTTP, random=0 502/409 혼재, LLM PII, E.164 정규화
+    * 계획서 완성도 78/100, Conditional Approval
+  - architect 에이전트 (oh-my-claudecode:architect, opus, READ-ONLY) → 402줄 리포트
+    * Critical 3건 / Major 6건 / Minor 6건
+    * 핵심: @TimeLimiter 동기 RestClient 비호환(C-1), 2-Phase TX(C-2), aspect order(C-3)
+    * 2-Phase TX 계산: 최악 6.6초 × 동시 10요청 = 66초 풀 점유
+
+[2026-05-19] US-003 통합 인계 문서 작성
+  - .omc/reviews/2026-05-19-phase0-handoff.md (337줄)
+  - §1 공통 지적 4건 (HIGH CONFIDENCE):
+    1) TX 안 외부 호출 → 2-Phase 분리
+    2) random=0 → 422 (502/409 폐기)
+    3) LLM PII/토큰 보호 → phoneNumber 미포함 + 최근 20건 제한
+    4) RFC 7807 ProblemDetail 도입
+  - §2 단독 지적 처리:
+    * 채택: C-1 @TimeLimiter 제거, M-2 Policy SoT, M-3 빈 배열 방어, M-4 UNIQUE 동시 충돌, AWS NAT/KMS, idempotency 명시, JaCoCo 70% gate
+    * 조건부: phoneNumber E.164 → 국내 형식 01012345678 (11자리)로 변경
+    * 기각: pre-commit hook, commitlint (1인 과제 + 비용 대비 효익 낮음)
+    * 상충 의견: 없음 (두 검토자 신호 일치)
+  - §3 plan_amendments 9건 before/after 구체화:
+    3.1 TX 경계 2-Phase
+    3.2 HTTP 상태 매트릭스 통일 (9 상황)
+    3.3 Resilience4j 어노테이션 + RestClient 자체 타임아웃
+    3.4 phoneNumber 국내 정규화
+    3.5 상태 머신 idempotency
+    3.6 LLM 프롬프트 PII/토큰
+    3.7 패키지 구조 (external.config 분리)
+    3.8 AWS 누락 항목 (NAT GW, KMS, DR RPO/RTO, WAF)
+    3.9 수용 기준 보강 (18 상태 케이스, 동시 가입 등)
+  - §4 Blockers 5건 (B-1~B-5): 차단 결정 없이 환경 변수/문서 SoT로 모두 해결 가능
+  - §5 Phase 1~6 본 루프 진입 시 사용할 컨텍스트/순서/완료 조건 명시
+
+[2026-05-19] PRD 완료 처리
+  - 3개 user story 모두 passes: true
+  - .omc/reviews/ 디렉토리: 3개 리포트 파일 생성 확인
+  - prd.json summary에 statusALL_STORIES_PASSED 기록
+
+[2026-05-19] Phase 0 Architect Verification (Ralph Step 7)
+  - 독립 architect 에이전트 (opus, 2회차) 의 cross-reference 검증
+  - 판정: APPROVED_WITH_NOTES / Confidence: HIGH
+  - MUST_FIX_BEFORE_PHASE1: 0건 (Phase 1 진입 차단 요소 없음)
+  - SHOULD_FIX 4건을 handoff §7에 통합 (Phase 1/2/3/5에서 처리)
+  - OPTIONAL 2건도 함께 기록
+  - 추가 발견: ASSIGNMENT.md:69 "어떤 상태로든 가입" 해석 긴장 — 인계 문서는 해석 2(NONE 거부) 채택, README에 명시적 결정 근거 기술 필요
+  - 추가 확인: ClientHttpRequestFactorySettings API는 Spring Boot 3.0+ 존재 확인됨 (handoff §3.3 코드 예시 정확)
+  - 추가 확인: @TimeLimiter 동기 RestClient 비호환 재확인 (handoff §3.3 C-1 채택 정확)
+
+학습 (Phase 1~6에 전달할 코드베이스 패턴):
+  - 본 인계 문서가 계획서보다 우선 SoT. 계획서는 history 보존.
+  - Resilience4j + 동기 RestClient 조합: @TimeLimiter 금지, RestClient 자체 타임아웃 사용
+  - 2-Phase TX: read-only validate → external call → write TX (낙관락으로 중간 충돌 감지)
+  - HTTP 코드 매트릭스 9 상황을 ProblemDetail.code 필드로 세분
+  - StateTransitionPolicy를 enum 외부 별도 클래스로 (Single Source of Truth)
+  - LLM 프롬프트에는 phoneNumber 미포함 + 최근 20건 제한
+  - phoneNumber 저장 형식 결정: VARCHAR(11), ^010\\d{8}$, 비숫자 제거 후 검증
+
+다음 단계:
+  - 사용자 승인 대기 → Phase 1 본 ralph 루프 진입
+  - Phase 1: 부트스트랩 (executor, sonnet)
+  - Phase 2: 도메인 + StateTransitionPolicy TDD 18 케이스 (deep-executor, opus)
+  - Phase 3 (team 병렬): external.csrng + external.llm
+  - Phase 4: 구독/해지 서비스 + Controller + GlobalExceptionHandler
+  - Phase 5 (team 병렬): 이력+LLM 통합 / AWS 아키텍처 문서
+  - Phase 6: 통합 테스트 + JaCoCo + verifier + critic 종합
+
+================================================================
+Phase 2 — 도메인 모델 + StateTransitionPolicy TDD (2026-05-20)
+================================================================
+
+[2026-05-20] Phase 2 시작 — executor (opus)
+  입력 컨텍스트: ASSIGNMENT.md, handoff §1/§3/§7, progress.txt, build.gradle, application*.yml
+
+[2026-05-20] 산출물
+  스키마:
+    - src/main/resources/db/migration/V1__init.sql (placeholder → 실 스키마 치환)
+      * members(id, phone_number UK, version, created_at, updated_at)
+      * channels(id, code UK, name, subscribable, unsubscribable, created_at)
+      * subscriptions(id, member_id FK, channel_id FK, state, subscribed_at, canceled_at, version, created_at, updated_at, UK(member_id,channel_id))
+      * subscription_history(id, subscription_id FK, member_id, channel_id, previous_state, next_state, event_type, occurred_at, idx(member_id,occurred_at DESC))
+      * 시드: channels 6건 (HOMEPAGE/MOBILE_APP/NAVER/SKT/CALL_CENTER/EMAIL — ASSIGNMENT 예시 그대로)
+
+  도메인 (com.artinus.subscription.domain):
+    - SubscriptionState (enum: NONE/BASIC/PREMIUM)
+    - StateTransitionEvent (enum: SUBSCRIBE_BASIC/SUBSCRIBE_PREMIUM/UNSUBSCRIBE_BASIC/UNSUBSCRIBE_NONE)
+      * 각 이벤트는 ActionType(SUBSCRIBE/UNSUBSCRIBE) + targetState 보유
+      * ASSIGNMENT의 "변경할 구독 상태" 입력을 (action × target) 4종으로 분해
+    - IllegalStateTransitionException (RuntimeException, currentState/event 보존)
+    - StateTransitionPolicy (final class, 정적 메서드 + immutable EnumMap)
+      * canTransition(current, event): boolean
+      * nextState(current, event): SubscriptionState (불가 시 IllegalStateTransitionException)
+      * null 인자는 IllegalArgumentException (NPE 아님 — 명세 명시 요구)
+    - Member (Long PK, phoneNumber, @Version, created/updated_at)
+    - Channel (Long PK, code, name, subscribable, unsubscribable, created_at)
+    - Subscription (Long memberId/channelId FK, state, subscribedAt, canceledAt, @Version)
+      * apply(event, occurredAt) — Policy 위임 + subscribed_at/canceled_at 자동 갱신
+      * @ManyToOne 사용 안 함 (handoff 명시 결정)
+    - SubscriptionHistory (Long subscriptionId/memberId/channelId, prev/next state, eventType, occurredAt)
+      * @NoArgsConstructor(PROTECTED) + @Builder + @Getter (Lombok)
+
+  테스트:
+    - src/test/java/com/artinus/subscription/domain/StateTransitionPolicyTest.java
+      * @ParameterizedTest로 허용 6 + 거부 6 = 12 케이스
+      * @Nested EdgeCases로 모서리 6 케이스
+      * 합계 18 케이스 PASS
+
+[2026-05-20] 검증 결과
+  - ./gradlew test --tests StateTransitionPolicyTest
+      * 12 + 6 = 18 case ALL PASS (failures=0, errors=0)
+  - ./gradlew build → BUILD SUCCESSFUL (20s)
+      * SubscriptionApplicationTests.contextLoads() PASS — Spring 컨텍스트 H2(test 프로파일)로 새 엔티티 매핑 정상 부팅
+  - 추가 의존성 도입 없음 (ArchUnit/MapStruct/Mockito 등 모두 회피)
+
+ASSIGNMENT 매트릭스 → 18 케이스 분해 표:
+  ┌──────────────────────────┬──────────────────────────────┬────────┐
+  │ 분류                     │ 케이스                       │ 출처   │
+  ├──────────────────────────┼──────────────────────────────┼────────┤
+  │ 허용(6) — nextState 검증 │ NONE+SUB_BASIC → BASIC       │ASGN§1  │
+  │                          │ NONE+SUB_PREMIUM → PREMIUM   │ASGN§1  │
+  │                          │ BASIC+SUB_PREMIUM → PREMIUM  │ASGN§1  │
+  │                          │ BASIC+UNSUB_NONE → NONE      │ASGN§2  │
+  │                          │ PREMIUM+UNSUB_BASIC → BASIC  │ASGN§2  │
+  │                          │ PREMIUM+UNSUB_NONE → NONE    │ASGN§2  │
+  ├──────────────────────────┼──────────────────────────────┼────────┤
+  │ 거부(6) — ISTE 발생      │ NONE+UNSUB_BASIC 거부        │handoff§7│
+  │                          │ NONE+UNSUB_NONE 거부         │handoff§7│
+  │                          │ BASIC+SUB_BASIC 멱등 거부    │handoff§3.5│
+  │                          │ BASIC+UNSUB_BASIC 거부       │ASGN§2  │
+  │                          │ PREMIUM+SUB_BASIC 거부       │ASGN§1  │
+  │                          │ PREMIUM+SUB_PREMIUM 멱등거부 │handoff§3.5│
+  ├──────────────────────────┼──────────────────────────────┼────────┤
+  │ 모서리(6)                │ 예외 메시지에 current/event  │handoff§1.3│
+  │                          │ canTransition true (허용)    │API 계약│
+  │                          │ canTransition false (거부)   │API 계약│
+  │                          │ nextState(null,e) IAE        │명세 명시│
+  │                          │ nextState(s,null) IAE        │명세 명시│
+  │                          │ canTransition(null,null) IAE │명세 명시│
+  └──────────────────────────┴──────────────────────────────┴────────┘
+
+ASSIGNMENT 해석 결정 / 보수적 선택:
+  1. 이벤트 모델링 — ASSIGNMENT는 "변경할 구독 상태"를 요청에 받지만 정책 입력을
+     단일 enum으로 표현하기 위해 (action, targetState) 4종으로 분해.
+     별도 dispatcher 없이 Policy가 enum 룩업으로 결정적 결과를 산출.
+  2. NONE → UNSUBSCRIBE_NONE — handoff §7 결정대로 거부 (해석 2).
+  3. BASIC + SUBSCRIBE_BASIC — 매트릭스 명시 없음 → 동일 상태 멱등 거부 (handoff §3.5).
+  4. PREMIUM + SUBSCRIBE_PREMIUM — 동일 사유 멱등 거부.
+  5. BASIC + UNSUBSCRIBE_BASIC — BASIC→BASIC은 의미 없는 요청 → 거부.
+  6. channels UNIQUE(member_id, channel_id) — ASSIGNMENT "구독/해지 여러 번 가능"은
+     동일 채널 행을 변경하는 방식으로 해석. history 테이블이 전이 흔적 보존.
+  7. event_type enum 컬럼은 ActionType(SUBSCRIBE/UNSUBSCRIBE) 2값만 저장.
+     details(SUBSCRIBE_BASIC vs SUBSCRIBE_PREMIUM)은 next_state로 복원 가능.
+
+Phase 3 진입 준비:
+  - 도메인 SoT 확정 (Policy / Entity / Schema 정합).
+  - external.csrng + external.llm 병렬 작업이 도메인을 호출 측에서 의존만 하면 됨.
+  - Repository/Service/Controller 미구현 — 의도된 분리 (Phase 4 책임).
+  - 커밋 미수행 (사용자 검토 대기).
+

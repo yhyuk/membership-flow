@@ -27,7 +27,6 @@ logs/
 
 # --- Spring Boot ---
 HELP.md
-application-local.yml
 application-secret.yml
 
 # --- Env / Secrets ---
@@ -47,3 +46,8 @@ coverage/
 .omc/state/
 .omc/logs/
 .omc/research/
+.omc/sessions/
+.omc/project-memory.json
+
+# --- Claude Code (local) ---
+.claude/

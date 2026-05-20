@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:subscription;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    # Phase 2부터 MySQL 전용 스크립트가 들어오므로 test 프로파일에서는 비활성
+    enabled: false
+
+logging:
+  level:
+    com.artinus.subscription: DEBUG

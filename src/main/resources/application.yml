@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: subscription
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  mvc:
+    problemdetails:
+      enabled: true   # RFC 7807 ProblemDetail (handoff §1.4)
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+# Resilience4j aspect order (handoff §3.3)
+#   Retry 최외곽(order=2) > CircuitBreaker(order=1)
+#   TimeLimiter/Bulkhead는 사용하지 않음
+resilience4j:
+  retry:
+    retry-aspect-order: 2
+  circuitbreaker:
+    circuit-breaker-aspect-order: 1

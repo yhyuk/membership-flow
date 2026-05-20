@@ -1,0 +1,63 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.artinus'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    // Resilience4j Spring Boot 3 starter (retry + circuitbreaker만 사용; TimeLimiter/Bulkhead 미사용)
+    resilience4jVersion = '2.2.0'
+    // Springdoc OpenAPI 2.x (Spring Boot 3.3 호환 최신 stable)
+    springdocVersion = '2.6.0'
+}
+
+dependencies {
+    // Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Flyway (MySQL 8 호환 모듈 분리됨: flyway-mysql 별도 의존성 필요)
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-mysql'
+
+    // OpenAPI / Swagger UI
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+    // Resilience4j (retry/circuitbreaker만; TimeLimiter/Bulkhead 미사용 — Phase 0 핸드오프 §3.3)
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // Runtime DB drivers
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    // H2 (test profile에서 인메모리 검증용)
+    testRuntimeOnly 'com.h2database:h2'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.assertj:assertj-core'
+    // Testcontainers는 Phase 6에서 추가 예정 (인계 문서 §5 Phase 6)
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
