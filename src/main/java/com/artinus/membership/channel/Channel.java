@@ -13,12 +13,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * 구독/해지 채널 엔티티.
- *
- * <p>{@code subscribable}/{@code unsubscribable} 플래그로 채널 타입을 표현한다
- * (ASSIGNMENT line 26-30). 시드 데이터는 Flyway V1__init.sql에서 INSERT.</p>
- */
 @Entity
 @Table(name = "channels")
 @Getter

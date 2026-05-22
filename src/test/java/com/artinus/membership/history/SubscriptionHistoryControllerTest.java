@@ -1,12 +1,10 @@
 package com.artinus.membership.history;
 
-import com.artinus.membership.common.ApiResponse;
-import com.artinus.membership.member.Member;
-import com.artinus.membership.history.HistoryService;
-import com.artinus.membership.history.SubscriptionHistoryResponse;
-import com.artinus.membership.common.ResourceNotFoundException;
-import com.artinus.membership.subscription.StateTransitionEvent;
-import com.artinus.membership.subscription.SubscriptionState;
+import com.artinus.membership.history.application.HistoryService;
+import com.artinus.membership.history.dto.SubscriptionHistoryResponse;
+import com.artinus.membership.common.exception.ResourceNotFoundException;
+import com.artinus.membership.subscription.domain.StateTransitionEvent;
+import com.artinus.membership.subscription.domain.SubscriptionState;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;

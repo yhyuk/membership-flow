@@ -1,8 +1,8 @@
 package com.artinus.membership.llm;
 
-import com.artinus.membership.subscription.StateTransitionEvent;
-import com.artinus.membership.history.SubscriptionHistory;
-import com.artinus.membership.subscription.SubscriptionState;
+import com.artinus.membership.subscription.domain.StateTransitionEvent;
+import com.artinus.membership.history.domain.SubscriptionHistory;
+import com.artinus.membership.subscription.domain.SubscriptionState;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import org.junit.jupiter.api.AfterAll;

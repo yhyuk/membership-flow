@@ -1,5 +1,6 @@
-package com.artinus.membership.subscription;
+package com.artinus.membership.subscription.domain;
 
+import com.artinus.membership.common.exception.IllegalStateTransitionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -16,16 +17,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * 회원 × 채널 구독 현재 상태.
- *
- * <p>Long FK로만 회원/채널을 참조한다. @ManyToOne 객체 그래프는
- * 사용하지 않는다 — N+1 회피 및 단순성(handoff §3 amendments).</p>
- *
- * <p>상태 변경은 {@link #apply(StateTransitionEvent, LocalDateTime)}로 캡슐화되어
- * subscribed_at / canceled_at 필드를 적절히 갱신한다. 전이 가능 여부는
- * {@link StateTransitionPolicy}에 위임한다.</p>
- */
+/** 회원 × 채널 구독 현재 상태. FK는 Long만 사용(@ManyToOne 미사용 — N+1 회피). */
 @Entity
 @Table(name = "subscriptions")
 @Getter
@@ -78,14 +70,9 @@ public class Subscription {
     }
 
     /**
-     * 정책에 따라 상태를 전이하고 부수 필드(subscribed_at / canceled_at)를 갱신한다.
+     * 정책에 따라 상태를 전이하고 subscribed_at / canceled_at 갱신.
      *
-     * <p>전이 불가능한 조합이면 {@link IllegalStateTransitionException}을 던진다.
-     * 호출자는 이 예외를 422 {@code INVALID_STATE_TRANSITION}으로 매핑한다(Phase 4 책임).</p>
-     *
-     * @param event       처리할 이벤트
-     * @param occurredAt  이벤트 시각 (이력 적재 및 subscribed_at/canceled_at 갱신용)
-     * @return 전이 후 상태 (호출자가 history 적재에 활용)
+     * @throws IllegalStateTransitionException 매트릭스에 정의되지 않은 전이
      */
     public SubscriptionState apply(StateTransitionEvent event, LocalDateTime occurredAt) {
         if (event == null) {

@@ -28,11 +28,7 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
 
-# 외부 API — csrng (Phase 3) + Gemini LLM (Phase 5)
-#   base-url: ASSIGNMENT.md §외부 API 명세 / Google Generative Language API 공식 엔드포인트
-#   timeout: handoff §3.3 (@TimeLimiter 회피 — RestClient 자체 타임아웃)
-#   gemini.api-key: 환경변수 GEMINI_API_KEY가 미설정이면 빈 문자열. 빈 키 호출은 어댑터가 즉시 fail.
-#                   → HistoryService가 catch하여 status=DEGRADED, summary=null로 HTTP 200 응답.
+# 외부 API — csrng + Gemini LLM
 external:
   csrng:
     base-url: ${CSRNG_BASE_URL:https://csrng.net/csrng/csrng.php}
@@ -43,16 +39,12 @@ external:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
       model: ${GEMINI_MODEL:gemini-2.0-flash}
       api-key: ${GEMINI_API_KEY:}
-      # LLM 응답은 csrng보다 느리므로 read timeout을 충분히 길게.
       connect-timeout-ms: 2000
       read-timeout-ms: 10000
-      # handoff §1.3 / §3.6 — PII/토큰 절감을 위해 최근 20건으로 고정.
+      # 토큰 절감을 위해 최근 20건으로 고정.
       max-recent-histories: 20
 
-# Resilience4j (handoff §3.3)
-#   aspect order: Retry 최외곽(order=2) > CircuitBreaker(order=1)
-#   호출 흐름: caller → Retry → CircuitBreaker → 실제 메서드
-#   TimeLimiter/Bulkhead는 사용하지 않음 (handoff C-1)
+# Resilience4j
 resilience4j:
   retry:
     retry-aspect-order: 2
@@ -65,8 +57,6 @@ resilience4j:
           - org.springframework.web.client.HttpServerErrorException
         ignore-exceptions:
           - com.artinus.membership.csrng.CsrngException
-      # LLM은 비싸므로 재시도를 짧게(2회) + wait 500ms.
-      # api-key 미설정 시 GeminiException은 ignore되어 호출 0회 검증이 가능하다.
       gemini:
         max-attempts: 2
         wait-duration: 500ms
@@ -85,14 +75,10 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
-        # CsrngException은 어댑터가 명시적으로 던지는 사용자 예외이므로
-        # CB가 이를 실패로 카운트 (4xx/빈배열/status≠success 모두 누적)
         record-exceptions:
           - com.artinus.membership.csrng.CsrngException
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
-      # LLM 인스턴스 — csrng와 완전 격리 (별도 SLA/장애 특성).
-      # 30초 OPEN으로 csrng보다 보수적. half-open에 진입할 때 2회만 허용.
       gemini:
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10

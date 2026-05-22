@@ -1,17 +1,19 @@
 package com.artinus.membership.history;
 
-import com.artinus.membership.history.SubscriptionHistoryResponse;
-import com.artinus.membership.common.ResourceNotFoundException;
+import com.artinus.membership.history.application.HistoryReader;
+import com.artinus.membership.history.application.HistoryService;
+import com.artinus.membership.history.dto.SubscriptionHistoryResponse;
+import com.artinus.membership.common.exception.ResourceNotFoundException;
 import com.artinus.membership.channel.Channel;
 import com.artinus.membership.member.Member;
-import com.artinus.membership.subscription.StateTransitionEvent;
-import com.artinus.membership.history.SubscriptionHistory;
-import com.artinus.membership.subscription.SubscriptionState;
+import com.artinus.membership.subscription.domain.StateTransitionEvent;
+import com.artinus.membership.history.domain.SubscriptionHistory;
+import com.artinus.membership.subscription.domain.SubscriptionState;
 import com.artinus.membership.llm.GeminiClient;
 import com.artinus.membership.llm.GeminiException;
 import com.artinus.membership.channel.ChannelRepository;
 import com.artinus.membership.member.MemberRepository;
-import com.artinus.membership.history.SubscriptionHistoryRepository;
+import com.artinus.membership.history.persistence.SubscriptionHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +26,6 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;

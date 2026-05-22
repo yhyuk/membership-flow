@@ -1,5 +1,10 @@
 package com.artinus.membership.subscription;
 
+import com.artinus.membership.common.exception.IllegalStateTransitionException;
+import com.artinus.membership.subscription.domain.StateTransitionEvent;
+import com.artinus.membership.subscription.domain.StateTransitionPolicy;
+import com.artinus.membership.subscription.domain.SubscriptionState;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

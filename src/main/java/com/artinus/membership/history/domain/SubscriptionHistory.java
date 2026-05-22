@@ -1,7 +1,7 @@
-package com.artinus.membership.history;
+package com.artinus.membership.history.domain;
 
-import com.artinus.membership.subscription.StateTransitionEvent;
-import com.artinus.membership.subscription.SubscriptionState;
+import com.artinus.membership.subscription.domain.StateTransitionEvent;
+import com.artinus.membership.subscription.domain.SubscriptionState;
 import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -17,12 +17,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * 구독 상태 전이의 INSERT-only append log.
- *
- * <p>member_id / channel_id는 LLM 요약 등 조회 성능을 위한 비정규화 컬럼.
- * previous_state는 첫 이력일 때 NULL 허용.</p>
- */
+/** 구독 상태 전이의 append-only 로그. member_id / channel_id는 조회 성능용 비정규화 컬럼. */
 @Entity
 @Table(name = "subscription_history")
 @Getter

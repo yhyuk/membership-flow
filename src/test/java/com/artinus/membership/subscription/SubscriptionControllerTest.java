@@ -1,14 +1,14 @@
 package com.artinus.membership.subscription;
 
-import com.artinus.membership.common.ApiResponse;
-import com.artinus.membership.subscription.SubscriptionService;
-import com.artinus.membership.subscription.SubscriptionRequest;
-import com.artinus.membership.subscription.SubscriptionResponse;
-import com.artinus.membership.common.ConcurrentModificationException;
-import com.artinus.membership.common.ExternalValidationRejectedException;
-import com.artinus.membership.subscription.IllegalStateTransitionException;
-import com.artinus.membership.subscription.StateTransitionEvent;
-import com.artinus.membership.subscription.SubscriptionState;
+import com.artinus.membership.common.exception.IllegalStateTransitionException;
+
+import com.artinus.membership.subscription.application.SubscriptionService;
+import com.artinus.membership.subscription.dto.SubscriptionRequest;
+import com.artinus.membership.subscription.dto.SubscriptionResponse;
+import com.artinus.membership.common.exception.ConcurrentModificationException;
+import com.artinus.membership.common.exception.ExternalValidationRejectedException;
+import com.artinus.membership.subscription.domain.StateTransitionEvent;
+import com.artinus.membership.subscription.domain.SubscriptionState;
 import com.artinus.membership.csrng.CsrngException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

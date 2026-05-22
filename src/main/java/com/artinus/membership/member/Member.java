@@ -14,12 +14,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * 회원 엔티티.
- *
- * <p>phoneNumber는 국내 정규화 형식 {@code ^010\d{8}$}로 저장된다(handoff §3.4).
- * 객체 그래프 매핑(@ManyToOne)은 사용하지 않으며, 외부 키는 Long으로 직접 보관한다.</p>
- */
 @Entity
 @Table(name = "members")
 @Getter
