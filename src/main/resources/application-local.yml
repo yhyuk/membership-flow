@@ -22,4 +22,4 @@ spring:
 
 logging:
   level:
-    com.artinus.subscription: DEBUG
+    com.artinus.membership: DEBUG

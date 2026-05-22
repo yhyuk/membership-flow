@@ -3,9 +3,6 @@ spring:
     name: subscription
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
-  mvc:
-    problemdetails:
-      enabled: true   # RFC 7807 ProblemDetail (handoff §1.4)
   jpa:
     open-in-view: false
     properties:
@@ -67,7 +64,7 @@ resilience4j:
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
         ignore-exceptions:
-          - com.artinus.subscription.external.csrng.CsrngException
+          - com.artinus.membership.csrng.CsrngException
       # LLM은 비싸므로 재시도를 짧게(2회) + wait 500ms.
       # api-key 미설정 시 GeminiException은 ignore되어 호출 0회 검증이 가능하다.
       gemini:
@@ -77,7 +74,7 @@ resilience4j:
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
         ignore-exceptions:
-          - com.artinus.subscription.external.llm.GeminiException
+          - com.artinus.membership.llm.GeminiException
   circuitbreaker:
     circuit-breaker-aspect-order: 1
     instances:
@@ -91,7 +88,7 @@ resilience4j:
         # CsrngException은 어댑터가 명시적으로 던지는 사용자 예외이므로
         # CB가 이를 실패로 카운트 (4xx/빈배열/status≠success 모두 누적)
         record-exceptions:
-          - com.artinus.subscription.external.csrng.CsrngException
+          - com.artinus.membership.csrng.CsrngException
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
       # LLM 인스턴스 — csrng와 완전 격리 (별도 SLA/장애 특성).
@@ -104,6 +101,6 @@ resilience4j:
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 2
         record-exceptions:
-          - com.artinus.subscription.external.llm.GeminiException
+          - com.artinus.membership.llm.GeminiException
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
