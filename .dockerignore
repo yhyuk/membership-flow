@@ -1,0 +1,55 @@
+# 빌드 컨텍스트 최소화 — 이미지 빌드 속도 + 보안 (secret 누출 방지)
+
+# --- Java / Gradle ---
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+out/
+bin/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Env / Secrets — 절대 이미지에 포함되면 안 됨 ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- Tests / Coverage artifacts ---
+.jacoco/
+coverage/
+*.exec
+
+# --- VCS ---
+.git/
+.gitignore
+.gitattributes
+
+# --- Docs / Tooling — 런타임 불필요 ---
+docs/
+.omc/
+.claude/
+ASSIGNMENT.md
+README.md
+
+# --- Docker 자체 (self) ---
+Dockerfile
+.dockerignore
+docker-compose*.yml

@@ -1,10 +1,22 @@
+# ============================================================================
+# docker-compose.yml — 로컬 통합 환경
+# ----------------------------------------------------------------------------
+# 두 가지 사용 시나리오:
+#   1) DB만:     docker compose up -d mysql           (앱은 ./gradlew bootRun)
+#   2) 풀스택:   docker compose up -d --build         (DB + 앱 모두 컨테이너)
+#
+# 환경 변수는 .env 파일에서 자동 로드 (compose 기본 동작).
+# .env.example 참고하여 .env 생성.
+# ============================================================================
+
 services:
   mysql:
     image: mysql:8.0.39
     container_name: subscription-mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      # 호스트 포트는 환경 변수로 override 가능 — 기본 3306, 충돌 시 .env에서 MYSQL_HOST_PORT=3307 등으로 변경
+      - "${MYSQL_HOST_PORT:-3306}:3306"
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-subscription}
       MYSQL_USER: ${MYSQL_USER:-subscription}
@@ -21,6 +33,51 @@ services:
       retries: 10
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - subscription-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: artinus/subscription:local
+    container_name: subscription-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: 8080
+      # 컨테이너 네트워크 내에서는 host=mysql (서비스 이름)
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-subscription}?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${MYSQL_USER:-subscription}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-subscription}
+      # 외부 API
+      CSRNG_BASE_URL: ${CSRNG_BASE_URL:-https://csrng.net/csrng/csrng.php}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      # 비어 있으면 이력 조회 API가 status=DEGRADED로 응답 (HTTP 200)
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # JVM 튜닝 (컨테이너 메모리 기반)
+      JAVA_OPTS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+    networks:
+      - subscription-net
+    # 풀스택 모드에서만 기동되도록 profile 분리 — DB만 띄울 때 (`up -d mysql`)는 영향 없음
+    profiles:
+      - app
 
 volumes:
   mysql_data:
+
+networks:
+  subscription-net:
+    driver: bridge

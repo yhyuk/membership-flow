@@ -42,13 +42,28 @@ com.artinus.subscription
 
 ## 로컬 실행 절차
 
-### 1. MySQL 기동 (docker-compose)
+두 가지 모드 중 선택:
+
+| 모드 | 명령 | 용도 |
+|---|---|---|
+| **A. DB만 컨테이너 + 앱 호스트** | `docker compose up -d mysql` → `./gradlew bootRun` | 개발 중 — 코드 수정/디버깅 빠른 피드백 |
+| **B. 풀스택 컨테이너** (앱 포함) | `docker compose --profile app up -d --build` | 운영 환경 모사 — 이미지 기반 통합 검증 |
+
+### 0. 환경 변수 준비
+
+```bash
+cp .env.example .env
+# 필요 시 GEMINI_API_KEY 등 채워 넣기 — 비워두면 이력 조회 summary는 DEGRADED 응답
+```
+
+### 모드 A — DB만 컨테이너
 
 ```bash
 docker compose up -d mysql
+./gradlew bootRun
 ```
 
-기본 접속 정보(`docker-compose.yml`):
+기본 접속 정보:
 
 | 키 | 값 |
 |---|---|
@@ -57,22 +72,35 @@ docker compose up -d mysql
 | user / password | `subscription` / `subscription` |
 | root password | `root` |
 
-### 2. 애플리케이션 기동
-
-```bash
-./gradlew bootRun
-```
-
 - 기본 프로파일은 `local` (환경변수 `SPRING_PROFILES_ACTIVE`로 변경 가능).
 - 환경 변수가 필요한 경우 `.env.example` 참고 후 셸에 export.
 
-### 3. 헬스 체크 & API 문서
+### 모드 B — 풀스택 컨테이너 (앱까지 도커)
+
+```bash
+docker compose --profile app up -d --build
+docker compose --profile app logs -f app    # 부팅 로그 관찰
+```
+
+- `Dockerfile`은 멀티스테이지 (JDK 21 builder → JRE 21 runtime, non-root 실행, layered jar)
+- 앱 컨테이너는 MySQL healthcheck 통과 후에야 기동 (`depends_on.condition: service_healthy`)
+- 컨테이너 내부에서는 DB host가 `mysql` (compose 서비스명)
+- JVM 옵션은 `JAVA_OPTS` 환경 변수로 전달 — 기본 `-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC`
+
+종료 / 정리:
+
+```bash
+docker compose --profile app down              # 컨테이너만 제거 (데이터 유지)
+docker compose --profile app down -v           # 볼륨까지 제거 (DB 초기화)
+```
+
+### 헬스 체크 & API 문서
 
 - Actuator: <http://localhost:8080/actuator/health>
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
 - OpenAPI JSON: <http://localhost:8080/v3/api-docs>
 
-### 4. 테스트 실행
+### 테스트 실행
 
 ```bash
 ./gradlew test
