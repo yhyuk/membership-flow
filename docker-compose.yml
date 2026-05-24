@@ -58,7 +58,7 @@ services:
       # 외부 API
       CSRNG_BASE_URL: ${CSRNG_BASE_URL:-https://csrng.net/csrng/csrng.php}
       GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       # 비어 있으면 이력 조회 API가 status=DEGRADED로 응답 (HTTP 200)
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       # JVM 튜닝 (컨테이너 메모리 기반)

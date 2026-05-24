@@ -29,11 +29,19 @@ public record GeminiRequest(
     ) {
     }
 
-    /** maxOutputTokens=300, temperature=0.2 권장. */
+    /** maxOutputTokens=512, temperature=0.2 권장. thinkingConfig는 2.5 모델의 reasoning 토큰 제어용. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record GenerationConfig(
             Integer maxOutputTokens,
-            Double temperature
+            Double temperature,
+            ThinkingConfig thinkingConfig
+    ) {
+    }
+
+    /** Gemini 2.5 reasoning 모델 thinking 예산 (0 = 비활성). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ThinkingConfig(
+            Integer thinkingBudget
     ) {
     }
 }

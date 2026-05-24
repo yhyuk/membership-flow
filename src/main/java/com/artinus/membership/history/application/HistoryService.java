@@ -49,9 +49,9 @@ public class HistoryService {
             return toResponse(snapshot, null, SubscriptionHistoryResponse.Status.EMPTY);
         }
 
-        Map<Long, String> channelCodeById = toChannelCodeMap(snapshot.channelsById());
+        Map<Long, String> channelNameById = toChannelNameMap(snapshot.channelsById());
         try {
-            String summary = geminiClient.summarize(snapshot.histories(), channelCodeById);
+            String summary = geminiClient.summarize(snapshot.histories(), channelNameById);
             return toResponse(snapshot, summary, SubscriptionHistoryResponse.Status.NORMAL);
         } catch (GeminiException | HttpServerErrorException | ResourceAccessException e) {
             // LLM 장애는 응답을 막지 않는다 — status=DEGRADED + summary=null, HTTP 200.
@@ -111,9 +111,9 @@ public class HistoryService {
         return digitsOnly;
     }
 
-    private static Map<Long, String> toChannelCodeMap(Map<Long, Channel> channelsById) {
+    private static Map<Long, String> toChannelNameMap(Map<Long, Channel> channelsById) {
         Map<Long, String> result = new HashMap<>(channelsById.size());
-        channelsById.forEach((id, channel) -> result.put(id, channel.getCode()));
+        channelsById.forEach((id, channel) -> result.put(id, channel.getName()));
         return result;
     }
 }

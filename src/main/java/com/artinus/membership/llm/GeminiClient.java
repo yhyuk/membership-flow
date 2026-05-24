@@ -38,12 +38,12 @@ public class GeminiClient {
      */
     @Retry(name = "gemini")
     @CircuitBreaker(name = "gemini")
-    public String summarize(List<SubscriptionHistory> recent, Map<Long, String> channelCodeById) {
+    public String summarize(List<SubscriptionHistory> recent, Map<Long, String> channelNameById) {
         if (properties.apiKey() == null || properties.apiKey().isBlank()) {
             throw new GeminiException("api-key not configured");
         }
 
-        GeminiRequest body = PromptTemplate.buildRequest(recent, channelCodeById);
+        GeminiRequest body = PromptTemplate.buildRequest(recent, channelNameById);
 
         GeminiResponse response = geminiRestClient.post()
                 .uri(GENERATE_CONTENT_PATH, properties.model(), properties.apiKey())
