@@ -43,7 +43,7 @@ public class SubscriptionApplier {
             SubscriptionState previousState = subscription.getState();
 
             // Validator 통과 후에도 동시성으로 currentState가 변했을 수 있어 도메인이 재검증.
-            SubscriptionState nextState = subscription.apply(ctx.event(), occurredAt);
+            SubscriptionState nextState = subscription.apply(ctx.event(), channel.getId(), occurredAt);
             // 명시적 flush — 낙관락 충돌을 커밋이 아니라 여기서 발견.
             Subscription persisted = subscriptionRepository.save(subscription);
 
@@ -90,15 +90,14 @@ public class SubscriptionApplier {
     }
 
     private Subscription resolveOrCreateSubscription(Member member, Channel channel, LocalDateTime occurredAt) {
-        Optional<Subscription> existing = subscriptionRepository
-                .findByMemberIdAndChannelId(member.getId(), channel.getId());
-			return existing.orElseGet(() -> Subscription.builder()
-				.memberId(member.getId())
-				.channelId(channel.getId())
-				.state(SubscriptionState.NONE)
-				.version(0L)
-				.createdAt(occurredAt)
-				.updatedAt(occurredAt)
-				.build());
-		}
+        Optional<Subscription> existing = subscriptionRepository.findByMemberId(member.getId());
+        return existing.orElseGet(() -> Subscription.builder()
+                .memberId(member.getId())
+                .channelId(channel.getId())
+                .state(SubscriptionState.NONE)
+                .version(0L)
+                .createdAt(occurredAt)
+                .updatedAt(occurredAt)
+                .build());
+    }
 }

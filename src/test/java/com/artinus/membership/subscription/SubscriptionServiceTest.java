@@ -96,7 +96,7 @@ class SubscriptionServiceTest {
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
         Member savedMember = memberWithId(10L);
         when(memberRepository.save(any(Member.class))).thenReturn(savedMember);
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.empty());
         when(subscriptionRepository.save(any(Subscription.class)))
                 .thenAnswer(inv -> withId(inv.getArgument(0), 200L));
@@ -122,7 +122,7 @@ class SubscriptionServiceTest {
         Subscription existingSub = subscriptionWith(10L, channel.getId(), SubscriptionState.BASIC);
         when(channelRepository.findByCode(CHANNEL_CODE)).thenReturn(Optional.of(channel));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.of(existingSub));
         when(subscriptionRepository.save(any(Subscription.class)))
                 .thenAnswer(inv -> withId(inv.getArgument(0), 200L));
@@ -145,7 +145,7 @@ class SubscriptionServiceTest {
         Subscription existingSub = subscriptionWith(10L, channel.getId(), SubscriptionState.PREMIUM);
         when(channelRepository.findByCode(CHANNEL_CODE)).thenReturn(Optional.of(channel));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.of(existingSub));
         when(subscriptionRepository.save(any(Subscription.class)))
                 .thenAnswer(inv -> withId(inv.getArgument(0), 200L));
@@ -167,7 +167,7 @@ class SubscriptionServiceTest {
         Subscription existingSub = subscriptionWith(10L, channel.getId(), SubscriptionState.PREMIUM);
         when(channelRepository.findByCode(CHANNEL_CODE)).thenReturn(Optional.of(channel));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.of(existingSub));
         when(subscriptionRepository.save(any(Subscription.class)))
                 .thenAnswer(inv -> withId(inv.getArgument(0), 200L));
@@ -182,19 +182,19 @@ class SubscriptionServiceTest {
     }
 
     @Test
-    @DisplayName("동일 상태 멱등 요청 (BASIC → BASIC) → IllegalStateTransitionException, csrng 호출 금지")
+    @DisplayName("동일 상태 멱등 요청 (BASIC → BASIC) → AlreadyInTargetStateException, csrng 호출 금지")
     void idempotentRequestRejected() {
         Channel channel = homepageChannel();
         Member existing = memberWithId(10L);
         Subscription existingSub = subscriptionWith(10L, channel.getId(), SubscriptionState.BASIC);
         when(channelRepository.findByCode(CHANNEL_CODE)).thenReturn(Optional.of(channel));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.of(existingSub));
 
         assertThatThrownBy(() -> subscriptionService.execute(
                 new SubscriptionRequest(PHONE, CHANNEL_CODE, SubscriptionState.BASIC)))
-                .isInstanceOf(IllegalStateTransitionException.class);
+                .isInstanceOf(com.artinus.membership.common.exception.AlreadyInTargetStateException.class);
 
         // 2-Phase 핵심 — Validator 단계에서 거부되면 csrng가 호출되지 않아야 한다.
         verify(csrngClient, never()).fetchRandomBit();
@@ -242,7 +242,7 @@ class SubscriptionServiceTest {
         Subscription existingSub = subscriptionWith(10L, channel.getId(), SubscriptionState.BASIC);
         when(channelRepository.findByCode(CHANNEL_CODE)).thenReturn(Optional.of(channel));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.of(existingSub));
         when(csrngClient.fetchRandomBit()).thenReturn(1);
         when(subscriptionRepository.save(any(Subscription.class)))
@@ -280,7 +280,7 @@ class SubscriptionServiceTest {
         Subscription existingSub = subscriptionWith(10L, naver.getId(), SubscriptionState.BASIC);
         when(channelRepository.findByCode("NAVER")).thenReturn(Optional.of(naver));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, naver.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.of(existingSub));
 
         assertThatThrownBy(() -> subscriptionService.execute(
@@ -309,7 +309,7 @@ class SubscriptionServiceTest {
         when(channelRepository.findByCode(CHANNEL_CODE)).thenReturn(Optional.of(channel));
         when(memberRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
         when(memberRepository.save(any(Member.class))).thenReturn(memberWithId(10L));
-        when(subscriptionRepository.findByMemberIdAndChannelId(10L, channel.getId()))
+        when(subscriptionRepository.findByMemberId(10L))
                 .thenReturn(Optional.empty());
         when(subscriptionRepository.save(any(Subscription.class)))
                 .thenAnswer(inv -> withId(inv.getArgument(0), 200L));

@@ -31,7 +31,7 @@ public class Subscription {
     @Column(name = "member_id", nullable = false, updatable = false)
     private Long memberId;
 
-    @Column(name = "channel_id", nullable = false, updatable = false)
+    @Column(name = "channel_id", nullable = false)
     private Long channelId;
 
     @Enumerated(EnumType.STRING)
@@ -74,9 +74,12 @@ public class Subscription {
      *
      * @throws IllegalStateTransitionException 매트릭스에 정의되지 않은 전이
      */
-    public SubscriptionState apply(StateTransitionEvent event, LocalDateTime occurredAt) {
+    public SubscriptionState apply(StateTransitionEvent event, Long channelId, LocalDateTime occurredAt) {
         if (event == null) {
             throw new IllegalArgumentException("event must not be null");
+        }
+        if (channelId == null) {
+            throw new IllegalArgumentException("channelId must not be null");
         }
         if (occurredAt == null) {
             throw new IllegalArgumentException("occurredAt must not be null");
@@ -84,6 +87,7 @@ public class Subscription {
 
         SubscriptionState next = StateTransitionPolicy.nextState(this.state, event);
         this.state = next;
+        this.channelId = channelId;
         if (event.action() == StateTransitionEvent.ActionType.SUBSCRIBE) {
             if (this.subscribedAt == null) {
                 this.subscribedAt = occurredAt;

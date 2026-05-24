@@ -1,22 +1,3 @@
--- ============================================================================
--- V1__init.sql — ARTINUS 구독 서비스 초기 스키마
--- ----------------------------------------------------------------------------
--- 설계 결정 (handoff §3 amendments 및 사용자 명시 결정 반영):
---   * ID 전략: BIGINT AUTO_INCREMENT (전 테이블)
---   * phoneNumber: VARCHAR(11), 국내 형식 '01012345678' 정규화 후 저장
---                   UNIQUE — handoff M-4 동시 가입 충돌 처리용
---   * 이력 관리: subscriptions와 분리된 별도 subscription_history (INSERT-only)
---   * Channel: Flyway V1에 시드 데이터 INSERT (운영 채널 6종)
---   * @Version 낙관락: members, subscriptions
---   * subscriptions UNIQUE(member_id, channel_id) 제약은 두지 않는다.
---     이유: ASSIGNMENT "회원은 구독 및 해지를 여러 번 수행할 수 있다" (line 108).
---     같은 채널에서 가입/해지를 반복할 수 있으므로 한 회원이 채널별 단일 행을
---     유지하되 history로 변경 추적. (UNIQUE는 (member_id, channel_id)만, 행 자체는
---     상태 변경/멱등 갱신으로 사용)
---   * 상태 enum: VARCHAR(20) + 애플리케이션 검증 (MySQL 8.0.16+ CHECK 가능하지만
---     스키마 진화 단순성을 위해 애플리케이션 레벨 검증으로 통일)
--- ============================================================================
-
 -- ---------------------------------------------------------------------------
 -- members — 회원
 -- ---------------------------------------------------------------------------
@@ -57,7 +38,7 @@ CREATE TABLE channels (
 CREATE TABLE subscriptions (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     member_id      BIGINT       NOT NULL,
-    channel_id     BIGINT       NOT NULL,
+    channel_id     BIGINT       NOT NULL COMMENT '최종 상태 변경 채널 (추적용)',
     state          VARCHAR(20)  NOT NULL COMMENT 'NONE | BASIC | PREMIUM',
     subscribed_at  DATETIME(6)  NULL     COMMENT '최초 구독 시각',
     canceled_at    DATETIME(6)  NULL     COMMENT '최종 해지 시각',
@@ -65,7 +46,7 @@ CREATE TABLE subscriptions (
     created_at     DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at     DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (id),
-    UNIQUE KEY uk_subscriptions_member_channel (member_id, channel_id),
+    UNIQUE KEY uk_subscriptions_member (member_id),
     CONSTRAINT fk_subscriptions_member  FOREIGN KEY (member_id)  REFERENCES members (id),
     CONSTRAINT fk_subscriptions_channel FOREIGN KEY (channel_id) REFERENCES channels (id)
 ) ENGINE = InnoDB
