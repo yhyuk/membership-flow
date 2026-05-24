@@ -176,6 +176,7 @@ ECS Service `desired-count >= 2` (AZ 분산)으로 단일 Task 장애에 즉시 
 
 ### 8.2 운영 시 보강 필요 (가성비 좋은 추가 작업 후보)
 
+- **이력 요약 캐싱 (Caffeine → ElastiCache)** — 현재 동일 회원이 이력 조회를 N번 호출하면 Gemini도 N번 호출된다. 캐시 키를 `memberId + lastHistoryId`로 설계하면 새 이력이 생길 때만 자연 무효화되어 가장 단순하다. 단일 Task에서는 Caffeine in-memory, Fargate 다중 Task 환경에서는 ElastiCache(Redis)로 승격. TTL 30분 + **성공 응답만 캐시** (DEGRADED 응답 캐시 금지로 LLM 회복 시 자동 복원).
 - **AWS X-Ray** — csrng/Gemini 외부 호출 latency 분포 추적. p99 spike 원인 분석에 필수.
 - **ECS 자동 스케일링 정책** — CPU 60% / 메모리 70% 임계, target tracking.
 - **Blue/Green 배포** — AWS CodeDeploy + ECS를 통해 무중단 배포. ALB target group 두 개 운영.
@@ -223,8 +224,8 @@ sequenceDiagram
 
 - **본 설계 문서의 SoT**: `.omc/reviews/2026-05-19-phase0-handoff.md` §3.8 (AWS 누락 항목 리스트) + §3.2 (HTTP 상태 매트릭스).
 - **연계 코드 경로**:
-  - 외부 API 어댑터: `com.artinus.subscription.external.csrng.CsrngClient`, `com.artinus.subscription.external.llm.GeminiClient`
-  - 트랜잭션 경계: `com.artinus.subscription.application.{SubscriptionService, SubscriptionValidator, SubscriptionApplier}`
-  - 응답 통일: `com.artinus.subscription.presentation.GlobalExceptionHandler`
+  - 외부 API 어댑터: `com.artinus.membership.csrng.CsrngClient`, `com.artinus.membership.llm.GeminiClient`
+  - 트랜잭션 경계: `com.artinus.membership.subscription.application.{SubscriptionService, SubscriptionValidator, SubscriptionApplier}`
+  - 응답 통일: `com.artinus.membership.common.exception.GlobalExceptionHandler`
 - **Region 가정**: ap-northeast-2 (서울). KMS CMK는 region-scoped.
 - **언어/런타임 가정**: Java 21 + Spring Boot 3.3.x. Virtual Thread 활성화는 운영 결정에 따름(현재 application.yml은 기본값).

@@ -24,6 +24,8 @@ ext {
     springdocVersion = '2.6.0'
     // WireMock standalone (test scope only — Phase 3 외부 API 격리 테스트)
     wiremockVersion = '3.9.1'
+    // Testcontainers (test scope only — Phase 6 실제 MySQL 통합 테스트)
+    testcontainersVersion = '1.20.4'
 }
 
 dependencies {
@@ -60,7 +62,10 @@ dependencies {
     // WireMock standalone — 외부 API(csrng) HTTP 격리 (Phase 3)
     // JUnit 5 extension은 wiremock-standalone에 포함되어 있음
     testImplementation "org.wiremock:wiremock-standalone:${wiremockVersion}"
-    // Testcontainers는 Phase 6에서 추가 예정 (인계 문서 §5 Phase 6)
+    // Testcontainers — 실제 MySQL 8에서 Flyway 마이그레이션 + UNIQUE 제약 검증 (Phase 6)
+    testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
 }
 
 tasks.named('test') {

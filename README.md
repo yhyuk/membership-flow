@@ -26,16 +26,23 @@
 
 ## 패키지 구조
 
+feature-sliced 구조. 각 feature 패키지 내부에 `domain`/`application`/`persistence`/`dto` 레이어를 둔다.
+
 ```
-com.artinus.subscription
-├── domain          # 회원/채널/구독 엔티티, 도메인 정책 (Phase 2)
-├── application     # 유스케이스 서비스 — Subscription* / History* 2-Phase TX (Phase 4~5)
-├── infrastructure  # JPA Repository, 영속 어댑터 (Phase 2~4)
-├── presentation    # REST Controller, ProblemDetail 핸들러 (Phase 4~5)
-├── external
-│   ├── csrng       # 외부 트랜잭션 검증 클라이언트 (Phase 3)
-│   └── llm         # Gemini 요약 클라이언트 — PromptTemplate(PII 보호) + Resilience4j (Phase 5)
-└── config          # 전역 설정 (Clock, OpenAPI 등)
+com.artinus.membership
+├── subscription        # 구독/해지 — Controller + Validator/Applier 2-Phase TX + 도메인 정책
+│   ├── application     #   SubscriptionService / SubscriptionValidator / SubscriptionApplier
+│   ├── domain          #   Subscription, SubscriptionState, StateTransitionPolicy, *Event, *Label
+│   ├── dto             #   SubscriptionRequest / SubscriptionResponse
+│   └── persistence     #   SubscriptionRepository
+├── history             # 이력 조회 + LLM 요약 — HistoryService(NORMAL/DEGRADED/EMPTY)
+│   ├── application, domain, dto, persistence
+│   └── SubscriptionHistoryController
+├── member              # Member 엔티티 + Repository
+├── channel             # Channel 엔티티 + Repository (Flyway V1 시드 데이터)
+├── csrng               # 외부 트랜잭션 검증 어댑터 (Resilience4j Retry + CircuitBreaker)
+├── llm                 # Gemini 요약 어댑터 (PromptTemplate · ThinkingConfig · Resilience4j)
+└── common              # ErrorCode, ApiResponse, GlobalExceptionHandler, Clock 등 공통 인프라
 ```
 
 ---
@@ -143,15 +150,4 @@ LLM 호출 실패가 사용자 응답을 막지 않는다는 결정은 ASSIGNMEN
 - Phase 0 인계 (정정 SoT): [`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md)
 - 클라우드 아키텍처: [`docs/architecture.md`](docs/architecture.md) — Mermaid 다이어그램 + NAT/KMS/WAF/RPO·RTO
 
----
 
-## 진행 상태
-
-- [x] 작업 계획 수립
-- [x] Phase 0 — 계획 검토 (critic + architect)
-- [x] Phase 1 — 프로젝트 부트스트랩
-- [x] Phase 2 — 도메인 & Flyway V1 & StateTransitionPolicy (18 케이스 TDD)
-- [x] Phase 3 — csrng 클라이언트 + Resilience4j
-- [x] Phase 4 — 구독/해지 API (2-Phase TX) + ProblemDetail GlobalExceptionHandler
-- [x] **Phase 5 — 이력 조회 + LLM 요약 + AWS 아키텍처 문서** (현재)
-- [ ] Phase 6 — 통합 시나리오 테스트 + JaCoCo + 최종 검증
