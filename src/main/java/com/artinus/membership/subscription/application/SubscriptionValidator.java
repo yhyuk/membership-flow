@@ -2,8 +2,9 @@ package com.artinus.membership.subscription.application;
 
 import com.artinus.membership.channel.Channel;
 import com.artinus.membership.channel.ChannelRepository;
+import com.artinus.membership.common.exception.AlreadyInTargetStateException;
 import com.artinus.membership.common.exception.ChannelPolicyViolationException;
-import com.artinus.membership.common.exception.IllegalStateTransitionException;
+import com.artinus.membership.common.exception.NoActiveSubscriptionException;
 import com.artinus.membership.common.exception.ResourceNotFoundException;
 import com.artinus.membership.member.Member;
 import com.artinus.membership.member.MemberRepository;
@@ -17,14 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
 /**
  * 2-Phase TX의 1단계 — read-only 검증.
- * Service와 별도 빈으로 둔 이유: {@code @Transactional} self-invocation 회피.
- *
- * <p>신규 회원은 null로 통과시키고 INSERT는 Applier에 위임(UNIQUE 충돌로 동시 가입 감지).
- * 구독 행이 없으면 currentState=NONE으로 간주.
+ * 채널 권한 → 상태 전이 순으로 검증해 사용자에게 의미 있는 에러를 우선 노출.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,66 +35,76 @@ public class SubscriptionValidator {
         Channel channel = channelRepository.findByCode(request.channelCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Channel", request.channelCode()));
 
-        Optional<Member> memberOpt = memberRepository.findByPhoneNumber(request.phoneNumber());
-        Member member = memberOpt.orElse(null);
+        Member member = memberRepository.findByPhoneNumber(request.phoneNumber()).orElse(null);
+        SubscriptionState currentState = (member == null)
+                ? SubscriptionState.NONE
+                : subscriptionRepository.findByMemberId(member.getId())
+                        .map(Subscription::getState)
+                        .orElse(SubscriptionState.NONE);
+        SubscriptionState targetState = request.targetState();
 
-        SubscriptionState currentState;
-        if (member == null) {
-            currentState = SubscriptionState.NONE;
-        } else {
-            currentState = subscriptionRepository
-                    .findByMemberIdAndChannelId(member.getId(), channel.getId())
-                    .map(Subscription::getState)
-                    .orElse(SubscriptionState.NONE);
+        // 1) target=NONE은 항상 해지 의도 — current=NONE이면 "구독 중 아님" 메시지가 가장 명확.
+        //    동일 상태 차단보다 우선해야 사용자가 "왜 해지가 안 되는지" 이해할 수 있다.
+        StateTransitionEvent.ActionType intent = inferIntent(currentState, targetState);
+
+        // 2) 동일 상태 재요청 차단 (NONE→NONE은 이미 1)에서 처리되었으므로 여기 도달 시 의미 있는 멱등).
+        if (currentState == targetState) {
+            throw new AlreadyInTargetStateException(currentState);
         }
 
-        StateTransitionEvent event = resolveEvent(currentState, request.targetState());
-        ensureChannelAllowsEvent(channel, event);
+        // 3) 채널 권한 사전 검증.
+        ensureChannelAllowsAction(channel, intent);
+
+        // 3) 상태 전이 매트릭스 검증.
+        StateTransitionEvent event = resolveEvent(currentState, targetState, intent);
         StateTransitionPolicy.nextState(currentState, event);
 
         return new ValidationContext(member, channel, currentState, event, request.phoneNumber());
     }
 
     /**
-     * (current, target) → StateTransitionEvent 매핑. 매트릭스에 없는 조합(동일 상태 등)은 거부.
-     * <pre>
-     *   NONE → BASIC/PREMIUM    SUBSCRIBE_*
-     *   BASIC → PREMIUM         SUBSCRIBE_PREMIUM
-     *   BASIC → NONE            UNSUBSCRIBE_NONE
-     *   PREMIUM → BASIC/NONE    UNSUBSCRIBE_*
-     * </pre>
+     * (current, target) → 사용자의 의도(SUBSCRIBE / UNSUBSCRIBE) 추론.
+     * <ul>
+     *   <li>target == NONE → 항상 UNSUBSCRIBE</li>
+     *   <li>current == NONE && target != NONE → SUBSCRIBE</li>
+     *   <li>current == BASIC && target == PREMIUM → SUBSCRIBE (업그레이드)</li>
+     *   <li>current == PREMIUM && target == BASIC → UNSUBSCRIBE (다운그레이드 = 부분 해지)</li>
+     * </ul>
      */
-    private static StateTransitionEvent resolveEvent(SubscriptionState current, SubscriptionState target) {
-        if (current == null || target == null) {
-            throw new IllegalArgumentException("currentState and targetState must not be null");
+    private static StateTransitionEvent.ActionType inferIntent(SubscriptionState current, SubscriptionState target) {
+        if (target == SubscriptionState.NONE) {
+            if (current == SubscriptionState.NONE) {
+                throw new NoActiveSubscriptionException();
+            }
+            return StateTransitionEvent.ActionType.UNSUBSCRIBE;
         }
-        return switch (current) {
-            case NONE -> switch (target) {
-                case BASIC -> StateTransitionEvent.SUBSCRIBE_BASIC;
-                case PREMIUM -> StateTransitionEvent.SUBSCRIBE_PREMIUM;
-                case NONE -> throw new IllegalStateTransitionException(current, null);
-            };
-            case BASIC -> switch (target) {
-                case PREMIUM -> StateTransitionEvent.SUBSCRIBE_PREMIUM;
-                case NONE -> StateTransitionEvent.UNSUBSCRIBE_NONE;
-                case BASIC -> throw new IllegalStateTransitionException(current, null);
-            };
-            case PREMIUM -> switch (target) {
-                case BASIC -> StateTransitionEvent.UNSUBSCRIBE_BASIC;
-                case NONE -> StateTransitionEvent.UNSUBSCRIBE_NONE;
-                case PREMIUM -> throw new IllegalStateTransitionException(current, null);
-            };
-        };
+        if (current == SubscriptionState.PREMIUM && target == SubscriptionState.BASIC) {
+            return StateTransitionEvent.ActionType.UNSUBSCRIBE;
+        }
+        return StateTransitionEvent.ActionType.SUBSCRIBE;
     }
 
-    private static void ensureChannelAllowsEvent(Channel channel, StateTransitionEvent event) {
-        if (event.action() == StateTransitionEvent.ActionType.SUBSCRIBE && !channel.isSubscribable()) {
+    private static void ensureChannelAllowsAction(Channel channel, StateTransitionEvent.ActionType intent) {
+        if (intent == StateTransitionEvent.ActionType.SUBSCRIBE && !channel.isSubscribable()) {
             throw new ChannelPolicyViolationException(
-                    "Channel '" + channel.getCode() + "' does not allow SUBSCRIBE");
+                    channel.getName() + " 채널에서는 구독을 할 수 없습니다.");
         }
-        if (event.action() == StateTransitionEvent.ActionType.UNSUBSCRIBE && !channel.isUnsubscribable()) {
+        if (intent == StateTransitionEvent.ActionType.UNSUBSCRIBE && !channel.isUnsubscribable()) {
             throw new ChannelPolicyViolationException(
-                    "Channel '" + channel.getCode() + "' does not allow UNSUBSCRIBE");
+                    channel.getName() + " 채널에서는 구독 해지를 할 수 없습니다.");
         }
+    }
+
+    private static StateTransitionEvent resolveEvent(
+            SubscriptionState current, SubscriptionState target, StateTransitionEvent.ActionType intent) {
+        if (intent == StateTransitionEvent.ActionType.SUBSCRIBE) {
+            return target == SubscriptionState.PREMIUM
+                    ? StateTransitionEvent.SUBSCRIBE_PREMIUM
+                    : StateTransitionEvent.SUBSCRIBE_BASIC;
+        }
+        // UNSUBSCRIBE
+        return target == SubscriptionState.BASIC
+                ? StateTransitionEvent.UNSUBSCRIBE_BASIC
+                : StateTransitionEvent.UNSUBSCRIBE_NONE;
     }
 }

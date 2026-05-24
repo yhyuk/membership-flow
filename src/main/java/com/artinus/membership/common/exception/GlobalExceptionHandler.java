@@ -18,21 +18,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.util.List;
 
-/**
- * 글로벌 예외 처리기. 모든 에러 응답은 {@link ApiResponse}.error() 형식으로 통일.
- * <pre>
- *  상황                         HTTP   ErrorCode
- *  ────────────────────────────────────────────────────────────
- *  @Valid 위반                   400   VALIDATION_FAILED
- *  회원/채널 미존재               404   RESOURCE_NOT_FOUND
- *  상태 전이 위반                 422   INVALID_STATE_TRANSITION
- *  csrng random=0                422   EXTERNAL_VALIDATION_REJECTED
- *  채널 권한 위반                 422   CHANNEL_POLICY_VIOLATION
- *  낙관락 / UNIQUE 충돌           409   CONCURRENT_MODIFICATION
- *  csrng 인프라 장애              502   EXTERNAL_API_UNAVAILABLE
- *  분류되지 않은 오류             500   INTERNAL_ERROR
- * </pre>
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -61,6 +46,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return respond(ErrorCode.VALIDATION_FAILED, ex.getMessage());
+    }
+
+    @ExceptionHandler(AlreadyInTargetStateException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAlreadyInTargetState(AlreadyInTargetStateException ex) {
+        return respond(ErrorCode.ALREADY_IN_TARGET_STATE, ex.getMessage());
+    }
+
+    @ExceptionHandler(NoActiveSubscriptionException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNoActiveSubscription(NoActiveSubscriptionException ex) {
+        return respond(ErrorCode.NO_ACTIVE_SUBSCRIPTION, ex.getMessage());
+    }
+
+    @ExceptionHandler(DowngradeNotAllowedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDowngradeNotAllowed(DowngradeNotAllowedException ex) {
+        return respond(ErrorCode.DOWNGRADE_NOT_ALLOWED, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalStateTransitionException.class)

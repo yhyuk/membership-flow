@@ -7,6 +7,9 @@ public enum ErrorCode {
 
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력 값 검증에 실패했습니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
+    ALREADY_IN_TARGET_STATE(HttpStatus.UNPROCESSABLE_ENTITY, "이미 요청한 상태입니다."),
+    NO_ACTIVE_SUBSCRIPTION(HttpStatus.UNPROCESSABLE_ENTITY, "구독 중이 아니므로 해지할 수 없습니다."),
+    DOWNGRADE_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_ENTITY, "구독 등급은 다운그레이드할 수 없습니다."),
     INVALID_STATE_TRANSITION(HttpStatus.UNPROCESSABLE_ENTITY, "허용되지 않은 상태 전이입니다."),
     EXTERNAL_VALIDATION_REJECTED(HttpStatus.UNPROCESSABLE_ENTITY, "외부 검증에 의해 거부되었습니다."),
     CHANNEL_POLICY_VIOLATION(HttpStatus.UNPROCESSABLE_ENTITY, "채널 정책을 위반한 요청입니다."),
