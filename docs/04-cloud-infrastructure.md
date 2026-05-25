@@ -38,61 +38,24 @@ flowchart LR
 
 ## 3. 배포 토폴로지
 
+2개 AZ(a, c)에 동일 구성을 대칭 배치합니다. 아래는 한 AZ 기준의 계층 구조입니다.
+
 ```mermaid
 flowchart TB
-    subgraph Region["Region: ap-northeast-2"]
-        subgraph VPC["VPC 10.0.0.0/16"]
-            subgraph AZA["AZ a"]
-                PubA["Public 10.0.0.0/24"]
-                AppA["Private 10.0.10.0/24"]
-                DbA["Isolated 10.0.20.0/24"]
-                ALBA[ALB Node]
-                NATA[NAT GW]
-                EcsA[ECS Task]
-                RdsA[(RDS Primary)]
-                ALBA --- PubA
-                NATA --- PubA
-                EcsA --- AppA
-                RdsA --- DbA
-            end
-            subgraph AZC["AZ c"]
-                PubC["Public 10.0.1.0/24"]
-                AppC["Private 10.0.11.0/24"]
-                DbC["Isolated 10.0.21.0/24"]
-                ALBC[ALB Node]
-                NATC[NAT GW]
-                EcsC[ECS Task]
-                RdsC[(RDS Standby)]
-                ALBC --- PubC
-                NATC --- PubC
-                EcsC --- AppC
-                RdsC --- DbC
-            end
-            VPE_Secrets[VPCE Secrets Manager]
-            VPE_Logs[VPCE CloudWatch Logs]
-            VPE_KMS[VPCE KMS]
-            EcsA --- VPE_Secrets
-            EcsA --- VPE_Logs
-            EcsA --- VPE_KMS
-            EcsC --- VPE_Secrets
-        end
-        WAF[AWS WAF v2]
-        WAF -.attach.-> ALBA
-        WAF -.attach.-> ALBC
-        ACM[ACM TLS Cert]
-        ACM -.terminate.-> ALBA
+    Internet --> WAF[WAF + ALB]
+    subgraph VPC["VPC (Multi-AZ)"]
+        WAF --> ECS[ECS Fargate<br/>Private Subnet]
+        ECS --> RDS[(RDS MySQL 8<br/>Isolated · Multi-AZ)]
+        ECS --> NAT[NAT GW] --> Ext[csrng / Gemini]
+        ECS -.VPC Endpoint.-> AWS[Secrets Manager<br/>KMS · CloudWatch]
     end
-    Internet[Internet]
-    Internet --> WAF
-    NATA --> Internet
-    NATC --> Internet
 ```
 
-| 서브넷 | 위치 | 자원 |
+| 서브넷 | 자원 | 인터넷 |
 |---|---|---|
-| Public | AZ a, c | ALB 노드, NAT GW (AZ당 1개) |
-| Private | AZ a, c | ECS Fargate Task |
-| Isolated | AZ a, c | RDS MySQL 8 Primary + Standby |
+| Public | ALB, NAT GW | 인입(ALB) / 아웃바운드(NAT) |
+| Private | ECS Fargate Task | NAT 경유만 |
+| Isolated | RDS Primary + Standby | 차단 |
 
 외부 인터넷 호출(csrng, Gemini)만 NAT GW를 경유합니다. Secrets Manager / KMS / CloudWatch Logs는 VPC Endpoint로 우회해 NAT 비용과 외부 노출을 동시에 줄입니다.
 
@@ -173,7 +136,7 @@ sequenceDiagram
     Note over A: TX 종료 (커넥션 반환)
     A->>X: GET csrng.php?min=0&max=1 (NAT, Retry/CB)
     X-->>A: [{status:success, random:1}]
-    A->>D: BEGIN; UPDATE subscriptions; INSERT history; COMMIT
+    A->>D: BEGIN - UPDATE subscriptions - INSERT history - COMMIT
     D-->>A: ok
     A-->>L: 200 OK (ApiResponse)
     L-->>C: 200 OK
