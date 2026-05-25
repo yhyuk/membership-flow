@@ -15,12 +15,12 @@
 | Database | MySQL 8.0.39 | Flyway 마이그레이션 |
 | Resilience | Resilience4j (Retry + CircuitBreaker) | 동기 RestClient 호환을 위해 TimeLimiter 미사용 |
 | HTTP Client | Spring 6 RestClient | 자체 connect/read timeout 설정 |
-| LLM | Google Gemini | 이력 자연어 요약 (Phase 5) |
+| LLM | Google Gemini (gemini-2.5-flash) | 이력 자연어 요약 |
 | API Docs | springdoc-openapi 2.x | Swagger UI |
 | Build | Gradle 8.10.2 (Groovy DSL) | |
-| Test | JUnit 5 + AssertJ + Mockito | Testcontainers는 Phase 6에서 추가 |
+| Test | JUnit 5 + AssertJ + Mockito + Testcontainers | 단위 + MySQL 통합 테스트 |
 
-자세한 기술 선택 근거는 [`.omc/plans/2026-05-19-artinus-subscription-plan.md`](.omc/plans/2026-05-19-artinus-subscription-plan.md) 및 [`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md) 참고.
+기술 선택 근거는 [`docs/01-architecture.md`](docs/01-architecture.md), [`docs/06-ai-engineering.md`](docs/06-ai-engineering.md) 참고.
 
 ---
 
@@ -113,7 +113,8 @@ docker compose --profile app down -v           # 볼륨까지 제거 (DB 초기�
 ./gradlew test
 ```
 
-테스트는 `application-test.yml`(H2 인메모리)로 실행되며 docker compose 없이도 통과한다.
+단위/슬라이스 테스트는 H2 인메모리로 실행된다. 통합 테스트(`SubscriptionScenarioIntegrationTest`)는
+Testcontainers로 실제 MySQL 8을 띄우므로 Docker 데몬이 실행 중이어야 한다.
 
 ---
 
@@ -124,9 +125,9 @@ docker compose --profile app down -v           # 볼륨까지 제거 (DB 초기�
 | POST | `/api/v1/subscriptions` | 구독/해지 (요청 body의 `targetState`로 분기) | Phase 4 |
 | GET | `/api/v1/members/{phoneNumber}/subscription-histories` | 최근 20건 이력 + LLM 요약 (NORMAL/DEGRADED/EMPTY) | Phase 5 |
 
-오류 응답은 RFC 7807 `application/problem+json`을 따른다. 본문에 ErrorCode가
-`code` 확장 속성으로 첨부된다. HTTP 상태 매트릭스 9 상황은
-[`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md) §3.2 참고.
+성공/오류 응답 모두 공통 `ApiResponse` 래퍼(`success`/`data`/`message`/`code`/`timestamp`)로 통일된다.
+오류 시 `code`에 ErrorCode가 담기며, 검증 실패는 `errors[]`에 필드별 상세가 추가된다.
+전체 HTTP 상태 매트릭스와 에러 코드는 [`docs/02-api.md`](docs/02-api.md) 참고.
 
 ### 이력 조회 API 응답 시나리오
 
@@ -145,9 +146,15 @@ LLM 호출 실패가 사용자 응답을 막지 않는다는 결정은 ASSIGNMEN
 
 ## 문서
 
-- 과제 원문: [`ASSIGNMENT.md`](ASSIGNMENT.md)
-- 작업 계획: [`.omc/plans/2026-05-19-artinus-subscription-plan.md`](.omc/plans/2026-05-19-artinus-subscription-plan.md)
-- Phase 0 인계 (정정 SoT): [`.omc/reviews/2026-05-19-phase0-handoff.md`](.omc/reviews/2026-05-19-phase0-handoff.md)
-- 클라우드 아키텍처: [`docs/architecture.md`](docs/architecture.md) — Mermaid 다이어그램 + NAT/KMS/WAF/RPO·RTO
+| # | 문서 | 내용 |
+|---|---|---|
+| 01 | [아키텍처 설계 & 프로젝트 구성](docs/01-architecture.md) | 패키지 구조, 2-Phase TX, 상태 머신 도메인 모델, DB 스키마 |
+| 02 | [API 명세](docs/02-api.md) | 엔드포인트, 에러 코드 매트릭스, 상태 전이 다이어그램, 마스킹/검증 규칙 |
+| 03 | [외부 API 장애 대응](docs/03-resilience.md) | Resilience4j Retry/CircuitBreaker, 2-Phase TX, LLM DEGRADED 흡수 |
+| 04 | [클라우드 인프라 설계](docs/04-cloud-infrastructure.md) | AWS 토폴로지(Mermaid), VPC/보안, 가용성·복구(RPO/RTO), 비용 |
+| 05 | [한계점 & 트레이드오프](docs/05-limitations.md) | 의도적 미적용 항목, 회원 단일 상태 결정, LLM 캐시 미적용 사유 |
+| 06 | [AI 협업 엔지니어링](docs/06-ai-engineering.md) | AI 제안 vs 사람 의사결정, 프롬프트 설계, AI 산출물 검증 사례 |
+
+참고: 과제 원문 [`ASSIGNMENT.md`](ASSIGNMENT.md)
 
 
