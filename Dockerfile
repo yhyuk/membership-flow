@@ -1,18 +1,3 @@
-# ============================================================================
-# Dockerfile — ARTINUS 구독 서비스 (멀티스테이지)
-# ----------------------------------------------------------------------------
-# Stage 1 (builder): Gradle + JDK 21로 bootJar 빌드 + layertools 추출
-# Stage 2 (runtime): Temurin JRE 21 (jammy) — non-root 실행, Spring Boot layered
-# ----------------------------------------------------------------------------
-# 빌드:
-#   docker build -t artinus/subscription:local .
-# 실행 (DB는 별도 컨테이너 필요):
-#   docker run --rm -p 8080:8080 \
-#     -e DB_URL='jdbc:mysql://host.docker.internal:3306/subscription?...' \
-#     -e DB_USERNAME=subscription -e DB_PASSWORD=subscription \
-#     artinus/subscription:local
-# ============================================================================
-
 # ---- Stage 1: Builder ------------------------------------------------------
 FROM eclipse-temurin:21-jdk-jammy AS builder
 WORKDIR /workspace

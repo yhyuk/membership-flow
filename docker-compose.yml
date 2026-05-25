@@ -1,12 +1,10 @@
 # ============================================================================
-# docker-compose.yml — 로컬 통합 환경
+# docker-compose.yml — 로컬 통합 환경 (DB + App)
 # ----------------------------------------------------------------------------
-# 두 가지 사용 시나리오:
-#   1) DB만:     docker compose up -d mysql           (앱은 ./gradlew bootRun)
-#   2) 풀스택:   docker compose up -d --build         (DB + 앱 모두 컨테이너)
+#   docker compose up -d --build      DB + 앱 모두 컨테이너로 기동
 #
-# 환경 변수는 .env 파일에서 자동 로드 (compose 기본 동작).
-# .env.example 참고하여 .env 생성.
+# 앱은 MySQL healthcheck 통과 후에야 시작된다.
+# 환경 변수는 .env 파일에서 자동 로드 (compose 기본 동작). .env.example 참고.
 # ============================================================================
 
 services:
@@ -71,9 +69,6 @@ services:
       start_period: 40s
     networks:
       - subscription-net
-    # 풀스택 모드에서만 기동되도록 profile 분리 — DB만 띄울 때 (`up -d mysql`)는 영향 없음
-    profiles:
-      - app
 
 volumes:
   mysql_data:
